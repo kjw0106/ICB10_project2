@@ -42,9 +42,9 @@ st.set_page_config(
 )
 
 # ----------------- 세션 상태 초기화 & API 정보 로드 -----------------
-# .env 파일로부터 키 값을 가져옵니다.
-env_client_id = os.environ.get("NAVER_CLIENT_ID", "").strip()
-env_client_secret = os.environ.get("NAVER_CLIENT_SECRET", "").strip()
+# Streamlit Secrets에서 먼저 키 값을 가져온 뒤, 없으면 환경 변수(.env)에서 가져옵니다.
+env_client_id = st.secrets.get("NAVER_CLIENT_ID", os.environ.get("NAVER_CLIENT_ID", "")).strip()
+env_client_secret = st.secrets.get("NAVER_CLIENT_SECRET", os.environ.get("NAVER_CLIENT_SECRET", "")).strip()
 
 # 세션 상태에 클라이언트 정보 등록
 if "client_id" not in st.session_state:
