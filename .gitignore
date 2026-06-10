@@ -122,3 +122,17 @@ Thumbs.db
 # .gitignore 파일은 제외하지 않음
 !.gitignore
 
+# --- 로컬 설정 및 숨김 리소스 추가 제외 ---
+# 스트림릿 비밀 설정 및 로컬 설정 폴더
+.streamlit/secrets.toml
+.streamlit/
+
+# 프로젝트 압축 및 백업 파일
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# 에이전트 내부 설정 폴더
+.agents/
+
