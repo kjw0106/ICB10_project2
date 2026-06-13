@@ -120,6 +120,8 @@ keywords_raw = st.sidebar.text_input(
     help="여러 검색어를 입력할 때는 쉼표(,)로 구분해 주세요. (예: 아이폰, 갤럭시)"
 )
 keywords_list = [k.strip() for k in keywords_raw.split(",") if k.strip()]
+if len(keywords_list) > 5:
+    st.sidebar.caption("⚠️ 비교 가능한 키워드는 최대 5개로 제한됩니다. 입력된 키워드 중 상위 5개만 반영됩니다.")
 
 # 검색 기간 설정
 today = datetime.today()
@@ -188,6 +190,22 @@ def get_theme_settings(theme_name: str) -> dict:
         }
     }
     return themes.get(theme_name, themes["Nord Modern"])
+
+def customize_plotly_chart(fig, theme_choice: str):
+    """
+    Plotly 차트의 한글 폰트 깨짐 방지 및 그리드선을 정돈하고 툴팁 설정을 보완합니다.
+    """
+    font_family = "Pretendard, Nanum Square, Malgun Gothic, sans-serif"
+    fig.update_layout(font=dict(family=font_family))
+    fig.update_layout(hoverlabel=dict(font_size=12, font_family=font_family))
+    
+    theme = get_theme_settings(theme_choice)
+    grid_color = "rgba(255, 255, 255, 0.1)" if theme["template"] == "plotly_dark" else "rgba(200, 200, 200, 0.15)"
+    
+    # X축 그리드 숨기기 (시계열 눈금 강조) 및 Y축 그리드선 옅게 세팅
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(gridcolor=grid_color)
+    return fig
 
 def apply_global_filters(df: pd.DataFrame, text_columns: list) -> pd.DataFrame:
     """
@@ -352,6 +370,7 @@ def render_search_trend_page():
                 template=theme["template"],
                 color_discrete_sequence=theme["palette"]
             )
+            fig = customize_plotly_chart(fig, theme_choice)
             fig.update_layout(hovermode="x unified")
             st.plotly_chart(fig, use_container_width=True)
             
@@ -456,6 +475,7 @@ def render_shopping_search_page():
                         template=theme["template"],
                         color_discrete_sequence=[theme["palette"][0]]
                     )
+                    fig_hist = customize_plotly_chart(fig_hist, theme_choice)
                     st.plotly_chart(fig_hist, use_container_width=True)
                 else:
                     st.write("가격 데이터가 존재하지 않습니다.")
@@ -475,6 +495,7 @@ def render_shopping_search_page():
                     color="상품 수",
                     color_continuous_scale=theme["continuous"]
                 )
+                fig_mall = customize_plotly_chart(fig_mall, theme_choice)
                 fig_mall.update_layout(yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig_mall, use_container_width=True)
                 
@@ -493,6 +514,7 @@ def render_shopping_search_page():
                         template=theme["template"],
                         color_discrete_sequence=theme["palette"]
                     )
+                    fig_brand = customize_plotly_chart(fig_brand, theme_choice)
                     st.plotly_chart(fig_brand, use_container_width=True)
                 else:
                     st.info("브랜드 메타데이터가 비어 있어 차트를 그릴 수 없습니다.")
@@ -511,6 +533,7 @@ def render_shopping_search_page():
                         hole=0.4,
                         color_discrete_sequence=theme["palette"]
                     )
+                    fig_maker = customize_plotly_chart(fig_maker, theme_choice)
                     st.plotly_chart(fig_maker, use_container_width=True)
                 else:
                     st.info("제조사 메타데이터가 비어 있어 차트를 그릴 수 없습니다.")
@@ -527,7 +550,14 @@ def render_shopping_search_page():
                     "link": "링크"
                 }
             )
-            st.dataframe(display_df, use_container_width=True)
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                column_config={
+                    "최저가": st.column_config.NumberColumn("최저가 (원)", format="%d 원"),
+                    "링크": st.column_config.LinkColumn("상품 링크", display_text="바로가기")
+                }
+            )
             
         except Exception as e:
             handle_api_error(str(e))
@@ -595,10 +625,11 @@ def render_blog_search_page():
                     template=theme["template"],
                     color_discrete_sequence=[theme["palette"][0]]
                 )
+                fig_date = customize_plotly_chart(fig_date, theme_choice)
                 st.plotly_chart(fig_date, use_container_width=True)
                 
             with col2:
-                st.markdown("#### ✍️ 주요 블로거 채널 순위")
+                st.markdown("#### ✍️ 주요 블로러 채널 순위")
                 blogger_counts = df["bloggername"].value_counts().head(10).reset_index()
                 blogger_counts.columns = ["블로거 이름", "작성 글 수"]
                 fig_blog = px.bar(
@@ -610,6 +641,7 @@ def render_blog_search_page():
                     template=theme["template"],
                     color_discrete_sequence=[theme["palette"][0]]
                 )
+                fig_blog = customize_plotly_chart(fig_blog, theme_choice)
                 fig_blog.update_layout(yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig_blog, use_container_width=True)
                 
@@ -624,7 +656,13 @@ def render_blog_search_page():
                     "description_clean": "내용 요약"
                 }
             )
-            st.dataframe(display_df, use_container_width=True)
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                column_config={
+                    "포스트 링크": st.column_config.LinkColumn("포스트 링크", display_text="바로가기")
+                }
+            )
             
         except Exception as e:
             handle_api_error(str(e))
@@ -687,6 +725,7 @@ def render_cafe_search_page():
                     color="게시글 수",
                     color_continuous_scale=theme["continuous"]
                 )
+                fig_cafe = customize_plotly_chart(fig_cafe, theme_choice)
                 fig_cafe.update_layout(yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig_cafe, use_container_width=True)
                 
@@ -700,6 +739,7 @@ def render_cafe_search_page():
                     template=theme["template"],
                     color_discrete_sequence=theme["palette"]
                 )
+                fig_pie = customize_plotly_chart(fig_pie, theme_choice)
                 st.plotly_chart(fig_pie, use_container_width=True)
                 
             # 카페글 목록
@@ -712,7 +752,13 @@ def render_cafe_search_page():
                     "description_clean": "내용 요약"
                 }
             )
-            st.dataframe(display_df, use_container_width=True)
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                column_config={
+                    "글 링크": st.column_config.LinkColumn("글 링크", display_text="바로가기")
+                }
+            )
             
         except Exception as e:
             handle_api_error(str(e))
@@ -782,6 +828,7 @@ def render_news_search_page():
                         template=theme["template"],
                         color_discrete_sequence=[theme["palette"][0]]
                     )
+                    fig_day = customize_plotly_chart(fig_day, theme_choice)
                     st.plotly_chart(fig_day, use_container_width=True)
                 else:
                     st.write("작성일 데이터를 파싱할 수 없습니다.")
@@ -801,6 +848,7 @@ def render_news_search_page():
                     template=theme["template"],
                     color_discrete_sequence=theme["palette"]
                 )
+                fig_link = customize_plotly_chart(fig_link, theme_choice)
                 st.plotly_chart(fig_link, use_container_width=True)
                 
             # 뉴스 목록
@@ -813,7 +861,13 @@ def render_news_search_page():
                     "description_clean": "보도 본문 요약"
                 }
             )
-            st.dataframe(display_df, use_container_width=True)
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                column_config={
+                    "뉴스 링크": st.column_config.LinkColumn("뉴스 링크", display_text="바로가기")
+                }
+            )
             
         except Exception as e:
             handle_api_error(str(e))
@@ -906,6 +960,7 @@ def render_shopping_trend_page():
                 template=theme["template"],
                 color_discrete_sequence=theme["palette"]
             )
+            fig = customize_plotly_chart(fig, theme_choice)
             fig.update_layout(hovermode="x unified")
             st.plotly_chart(fig, use_container_width=True)
             
