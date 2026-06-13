@@ -139,6 +139,9 @@ current_secret = st.session_state["client_secret"]
 if current_id and current_secret:
     api_client = NaverApiClient(current_id, current_secret)
 
+# 비주얼 테마 CSS 주입 실행
+apply_visual_theme_css(theme_choice)
+
 # 메뉴 네비게이션
 st.sidebar.markdown("---")
 st.sidebar.title("📌 분석 메뉴")
@@ -199,6 +202,69 @@ def customize_plotly_chart(fig, theme_choice: str):
     fig.update_xaxes(showgrid=False)
     fig.update_yaxes(gridcolor=grid_color)
     return fig
+
+def apply_visual_theme_css(theme_name: str):
+    """
+    선택된 테마에 맞춰 Streamlit 애플리케이션 전체의 배경색 및 텍스트 스타일을 동적 제어합니다.
+    """
+    if theme_name == "Cyberpunk Dark":
+        cyberpunk_css = """
+        <style>
+            /* 메인 백그라운드 색상 및 기본 텍스트 색상 */
+            .stApp {
+                background-color: #0B0B1E !important;
+                color: #F8F9FA !important;
+            }
+            
+            /* 사이드바 백그라운드 색상 */
+            section[data-testid="stSidebar"] {
+                background-color: #05050F !important;
+                border-right: 1px solid #FF007F !important;
+            }
+            
+            /* 사이드바 텍스트 및 라벨들 네온 시안 색상 */
+            section[data-testid="stSidebar"] h1, 
+            section[data-testid="stSidebar"] h2, 
+            section[data-testid="stSidebar"] h3, 
+            section[data-testid="stSidebar"] label,
+            section[data-testid="stSidebar"] .stMarkdown p,
+            section[data-testid="stSidebar"] span {
+                color: #00F0FF !important;
+            }
+            
+            /* 일반 제목 및 메인 텍스트 네온 핑크/시안 조화 */
+            h1, h2, h3, h4, h5, h6 {
+                color: #FF007F !important;
+                text-shadow: 0 0 10px rgba(255, 0, 127, 0.3) !important;
+            }
+            
+            /* 일반 본문 글자색 */
+            p, span, label {
+                color: #E2E8F0 !important;
+            }
+            
+            /* 아코디언(Expander) 영역 다크네온 스타일화 */
+            div[data-testid="stExpander"] {
+                background-color: #101026 !important;
+                border: 1px solid #00F0FF !important;
+                border-radius: 6px !important;
+            }
+            
+            /* 메인 컴포넌트 정보 박스 스타일링 */
+            div.stAlert {
+                background-color: #1A1A3C !important;
+                border: 1px solid #FF007F !important;
+                color: #F8F9FA !important;
+            }
+            
+            /* 데이터프레임 내부 셀 및 헤더 스타일 보정 (전체 다크 조화) */
+            div[data-testid="stDataFrame"] {
+                border: 1px solid #00F0FF !important;
+                border-radius: 6px !important;
+            }
+        </style>
+        """
+        st.markdown(cyberpunk_css, unsafe_allow_html=True)
 
 def apply_global_filters(df: pd.DataFrame, text_columns: list) -> pd.DataFrame:
     """
