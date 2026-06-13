@@ -53,61 +53,54 @@ if "client_secret" not in st.session_state:
     st.session_state["client_secret"] = env_client_secret
 
 # ----------------- 사이드바 (공통 입력 영역) -----------------
-st.sidebar.title("🔑 네이버 API 설정")
-
-if env_client_id and env_client_secret:
-    st.sidebar.success("✅ `.env` 키 로드 완료")
-    masked_id = env_client_id[:4] + "*" * (len(env_client_id) - 4) if len(env_client_id) > 4 else "****"
-    st.sidebar.caption(f"연동 ID: {masked_id}")
-    # .env에 키가 있으면 수동 입력을 받지 않고 환경 변수 값으로 세션을 유지합니다.
-    st.session_state["client_id"] = env_client_id
-    st.session_state["client_secret"] = env_client_secret
-else:
-    st.sidebar.warning("⚠️ `.env` 키 미로드 (수동 입력 필요)")
-    st.sidebar.info("프로젝트 폴더 내 `.env` 파일에 키를 저장하면 매번 입력하지 않아도 됩니다.")
-
-    # .env 파일에 키가 없는 경우에만 수동 입력 폼을 제공합니다.
-    client_id_input = st.sidebar.text_input(
-        "Client ID", 
-        value=st.session_state["client_id"],
-        type="password",
-        help="네이버 개발자 센터에서 발급받은 Client ID를 입력하세요."
+# --- 🔑 API & 테마 설정 아코디언 ---
+with st.sidebar.expander("🔑 API & 테마 설정", expanded=False):
+    if env_client_id and env_client_secret:
+        st.success("✅ `.env` 키 로드 완료")
+        masked_id = env_client_id[:4] + "*" * (len(env_client_id) - 4) if len(env_client_id) > 4 else "****"
+        st.caption(f"연동 ID: {masked_id}")
+        st.session_state["client_id"] = env_client_id
+        st.session_state["client_secret"] = env_client_secret
+    else:
+        st.warning("⚠️ `.env` 키 미로드 (수동 입력 필요)")
+        st.info("프로젝트 폴더 내 `.env` 파일에 키를 저장하면 편리합니다.")
+        client_id_input = st.text_input(
+            "Client ID", 
+            value=st.session_state["client_id"],
+            type="password",
+            help="네이버 개발자 센터에서 발급받은 Client ID를 입력하세요."
+        )
+        client_secret_input = st.text_input(
+            "Client Secret", 
+            value=st.session_state["client_secret"],
+            type="password",
+            help="네이버 개발자 센터에서 발급받은 Client Secret을 입력하세요."
+        )
+        st.session_state["client_id"] = client_id_input.strip()
+        st.session_state["client_secret"] = client_secret_input.strip()
+        
+    st.markdown("---")
+    theme_choice = st.selectbox(
+        "차트 그래픽 테마",
+        ["Nord Modern", "Cyberpunk Dark", "Light Clean", "Warm Autumn"],
+        help="차트에 입힐 컬러 팔레트와 스타일을 설정합니다."
     )
-    client_secret_input = st.sidebar.text_input(
-        "Client Secret", 
-        value=st.session_state["client_secret"],
-        type="password",
-        help="네이버 개발자 센터에서 발급받은 Client Secret을 입력하세요."
+
+# --- ⚙️ 공통 전처리 설정 아코디언 ---
+with st.sidebar.expander("⚙️ 공통 전처리 설정", expanded=False):
+    exclude_kws_input = st.text_input(
+        "제외 키워드 (쉼표 구분)",
+        value="",
+        help="제목이나 내용에 포함될 시 분석에서 제외할 키워드를 입력하세요."
     )
+    exclude_keywords = [k.strip() for k in exclude_kws_input.split(",") if k.strip()]
 
-    # 수동 입력받은 값으로 세션 상태를 업데이트합니다.
-    st.session_state["client_id"] = client_id_input.strip()
-    st.session_state["client_secret"] = client_secret_input.strip()
-
-# 세션 상태 갱신
-st.sidebar.markdown("---")
-st.sidebar.title("⚙️ 공통 전처리 설정")
-
-exclude_kws_input = st.sidebar.text_input(
-    "제외 키워드 (쉼표 구분)",
-    value="",
-    help="제목이나 내용에 포함될 시 분석에서 제외할 키워드를 입력하세요."
-)
-exclude_keywords = [k.strip() for k in exclude_kws_input.split(",") if k.strip()]
-
-exclude_malls_input = st.sidebar.text_input(
-    "제외 쇼핑몰 (쉼표 구분)",
-    value="",
-    help="쇼핑 데이터 분석 시 결과에서 배제할 쇼핑몰명을 입력하세요."
-)
-exclude_malls = [m.strip() for m in exclude_malls_input.split(",") if m.strip()]
-
-st.sidebar.title("🎨 차트 테마 설정")
-theme_choice = st.sidebar.selectbox(
-    "차트 그래픽 테마",
-    ["Nord Modern", "Cyberpunk Dark", "Light Clean", "Warm Autumn"],
-    help="차트에 입힐 컬러 팔레트와 스타일을 설정합니다."
-)
+    exclude_malls_input = st.text_input(
+        "제외 쇼핑몰 (쉼표 구분)",
+        value="",
+        help="쇼핑 데이터 분석 시 결과에서 배제할 쇼핑몰명을 입력하세요."
+    )
+    exclude_malls = [m.strip() for m in exclude_malls_input.split(",") if m.strip()]
 
 st.sidebar.markdown("---")
 st.sidebar.title("🔍 검색 조건 설정")
@@ -389,7 +382,15 @@ def render_search_trend_page():
                     
             # 데이터 표 표시
             with st.expander("원본 데이터 테이블 보기"):
-                st.dataframe(df.pivot(index="날짜", columns="검색어", values="검색 비율(%)"), use_container_width=True)
+                trend_pivot = df.pivot(index="날짜", columns="검색어", values="검색 비율(%)")
+                st.dataframe(trend_pivot, use_container_width=True)
+                csv_data = trend_pivot.to_csv().encode('utf-8-sig')
+                st.download_button(
+                    label="📥 트렌드 데이터 다운로드 (CSV)",
+                    data=csv_data,
+                    file_name=f"naver_search_trend_{datetime.now().strftime('%Y%m%d%H%M')}.csv",
+                    mime="text/csv"
+                )
                 
         except Exception as e:
             handle_api_error(str(e))
@@ -406,15 +407,18 @@ def render_shopping_search_page():
         st.warning("검색어를 입력해 주세요.")
         return
         
-    # 복수 검색어 중 분석을 진행할 하나의 키워드 선택
-    target_kw = st.selectbox("분석 대상 검색어 선택", keywords_list)
-    
-    display_count = st.slider("조회할 상품 개수", min_value=10, max_value=100, value=50, step=10)
-    sort_option = st.selectbox(
-        "정렬 옵션", 
-        ["sim", "date", "asc", "dsc"], 
-        format_func=lambda x: {"sim": "유사도순", "date": "최신등록순", "asc": "가격낮은순", "dsc": "가격높은순"}[x]
-    )
+    # 컨트롤러 가로형 배치
+    col_ctl1, col_ctl2, col_ctl3 = st.columns(3)
+    with col_ctl1:
+        target_kw = st.selectbox("분석 대상 검색어 선택", keywords_list)
+    with col_ctl2:
+        display_count = st.slider("조회할 상품 개수", min_value=10, max_value=100, value=50, step=10)
+    with col_ctl3:
+        sort_option = st.selectbox(
+            "정렬 옵션", 
+            ["sim", "date", "asc", "dsc"], 
+            format_func=lambda x: {"sim": "유사도순", "date": "최신등록순", "asc": "가격낮은순", "dsc": "가격높은순"}[x]
+        )
     
     with st.spinner("쇼핑 데이터 가져오는 중..."):
         try:
@@ -558,6 +562,13 @@ def render_shopping_search_page():
                     "링크": st.column_config.LinkColumn("상품 링크", display_text="바로가기")
                 }
             )
+            csv_data = display_df.to_csv(index=False).encode('utf-8-sig')
+            st.download_button(
+                label="📥 쇼핑 분석 데이터 다운로드 (CSV)",
+                data=csv_data,
+                file_name=f"naver_shopping_analysis_{target_kw}_{datetime.now().strftime('%Y%m%d%H%M')}.csv",
+                mime="text/csv"
+            )
             
         except Exception as e:
             handle_api_error(str(e))
@@ -574,13 +585,17 @@ def render_blog_search_page():
         st.warning("검색어를 입력해 주세요.")
         return
         
-    target_kw = st.selectbox("분석 대상 검색어 선택", keywords_list)
-    display_count = st.slider("수집할 블로그 수", min_value=10, max_value=100, value=50, step=10)
-    sort_option = st.selectbox(
-        "정렬 옵션", 
-        ["sim", "date"], 
-        format_func=lambda x: {"sim": "유사도순", "date": "최신날짜순"}[x]
-    )
+    col_ctl1, col_ctl2, col_ctl3 = st.columns(3)
+    with col_ctl1:
+        target_kw = st.selectbox("분석 대상 검색어 선택", keywords_list)
+    with col_ctl2:
+        display_count = st.slider("수집할 블로그 수", min_value=10, max_value=100, value=50, step=10)
+    with col_ctl3:
+        sort_option = st.selectbox(
+            "정렬 옵션", 
+            ["sim", "date"], 
+            format_func=lambda x: {"sim": "유사도순", "date": "최신날짜순"}[x]
+        )
     
     with st.spinner("블로그 포스트 수집 중..."):
         try:
@@ -663,6 +678,13 @@ def render_blog_search_page():
                     "포스트 링크": st.column_config.LinkColumn("포스트 링크", display_text="바로가기")
                 }
             )
+            csv_data = display_df.to_csv(index=False).encode('utf-8-sig')
+            st.download_button(
+                label="📥 블로그 데이터 다운로드 (CSV)",
+                data=csv_data,
+                file_name=f"naver_blog_data_{target_kw}_{datetime.now().strftime('%Y%m%d%H%M')}.csv",
+                mime="text/csv"
+            )
             
         except Exception as e:
             handle_api_error(str(e))
@@ -679,13 +701,17 @@ def render_cafe_search_page():
         st.warning("검색어를 입력해 주세요.")
         return
         
-    target_kw = st.selectbox("분석 대상 검색어 선택", keywords_list)
-    display_count = st.slider("수집할 카페글 수", min_value=10, max_value=100, value=50, step=10)
-    sort_option = st.selectbox(
-        "정렬 옵션", 
-        ["sim", "date"], 
-        format_func=lambda x: {"sim": "유사도순", "date": "최신날짜순"}[x]
-    )
+    col_ctl1, col_ctl2, col_ctl3 = st.columns(3)
+    with col_ctl1:
+        target_kw = st.selectbox("분석 대상 검색어 선택", keywords_list)
+    with col_ctl2:
+        display_count = st.slider("수집할 카페글 수", min_value=10, max_value=100, value=50, step=10)
+    with col_ctl3:
+        sort_option = st.selectbox(
+            "정렬 옵션", 
+            ["sim", "date"], 
+            format_func=lambda x: {"sim": "유사도순", "date": "최신날짜순"}[x]
+        )
     
     with st.spinner("카페글 수집 중..."):
         try:
@@ -759,6 +785,13 @@ def render_cafe_search_page():
                     "글 링크": st.column_config.LinkColumn("글 링크", display_text="바로가기")
                 }
             )
+            csv_data = display_df.to_csv(index=False).encode('utf-8-sig')
+            st.download_button(
+                label="📥 카페 데이터 다운로드 (CSV)",
+                data=csv_data,
+                file_name=f"naver_cafe_data_{target_kw}_{datetime.now().strftime('%Y%m%d%H%M')}.csv",
+                mime="text/csv"
+            )
             
         except Exception as e:
             handle_api_error(str(e))
@@ -775,13 +808,17 @@ def render_news_search_page():
         st.warning("검색어를 입력해 주세요.")
         return
         
-    target_kw = st.selectbox("분석 대상 검색어 선택", keywords_list)
-    display_count = st.slider("수집할 뉴스 기사 수", min_value=10, max_value=100, value=50, step=10)
-    sort_option = st.selectbox(
-        "정렬 옵션", 
-        ["sim", "date"], 
-        format_func=lambda x: {"sim": "유사도순", "date": "최신날짜순"}[x]
-    )
+    col_ctl1, col_ctl2, col_ctl3 = st.columns(3)
+    with col_ctl1:
+        target_kw = st.selectbox("분석 대상 검색어 선택", keywords_list)
+    with col_ctl2:
+        display_count = st.slider("수집할 뉴스 기사 수", min_value=10, max_value=100, value=50, step=10)
+    with col_ctl3:
+        sort_option = st.selectbox(
+            "정렬 옵션", 
+            ["sim", "date"], 
+            format_func=lambda x: {"sim": "유사도순", "date": "최신날짜순"}[x]
+        )
     
     with st.spinner("뉴스 기사 수집 중..."):
         try:
@@ -867,6 +904,13 @@ def render_news_search_page():
                 column_config={
                     "뉴스 링크": st.column_config.LinkColumn("뉴스 링크", display_text="바로가기")
                 }
+            )
+            csv_data = display_df.to_csv(index=False).encode('utf-8-sig')
+            st.download_button(
+                label="📥 뉴스 데이터 다운로드 (CSV)",
+                data=csv_data,
+                file_name=f"naver_news_data_{target_kw}_{datetime.now().strftime('%Y%m%d%H%M')}.csv",
+                mime="text/csv"
             )
             
         except Exception as e:
@@ -966,7 +1010,15 @@ def render_shopping_trend_page():
             
             # 데이터 표 표시
             with st.expander("원본 데이터 테이블 보기"):
-                st.dataframe(df.pivot(index="날짜", columns="키워드", values="클릭 비율(%)"), use_container_width=True)
+                trend_pivot = df.pivot(index="날짜", columns="키워드", values="클릭 비율(%)")
+                st.dataframe(trend_pivot, use_container_width=True)
+                csv_data = trend_pivot.to_csv().encode('utf-8-sig')
+                st.download_button(
+                    label="📥 쇼핑 트렌드 데이터 다운로드 (CSV)",
+                    data=csv_data,
+                    file_name=f"naver_shopping_trend_{datetime.now().strftime('%Y%m%d%H%M')}.csv",
+                    mime="text/csv"
+                )
                 
         except Exception as e:
             handle_api_error(str(e))
