@@ -1,3 +1,18 @@
+# 🚀 Project Status & Quick Links
+
+## 🔗 Streamlit 대시보드 접속 주소
+- **로컬 접속 주소**: [http://localhost:8501](http://localhost:8501)
+- **네트워크 접속 주소**: http://192.168.55.161:8501
+
+## 🛠️ 최근 작업 내역 (Updated: 2026-06-13)
+1. **Git post-commit 훅 설정 완료**
+   - 커밋(`git commit`) 시 원격 저장소(`origin`)에 현재 브랜치가 자동으로 푸시(`git push`)되도록 `.git/hooks/post-commit` 훅을 구성했습니다.
+   - 테스트 브랜치를 통해 자동 푸시 기능의 정상 작동 여부를 검증 완료하였습니다.
+2. **Streamlit 대시보드 구동**
+   - `naver-api-app` 프로젝트 구동을 위한 가상환경 패키지 구성을 확인하고, 로컬 호스트(8501 포트)에서 Streamlit 서비스를 백그라운드로 성공적으로 실행하였습니다.
+
+---
+
 ## STEP 0. 팀 구성 및 협업 환경 세팅
 
 ### 슬랙 세팅
