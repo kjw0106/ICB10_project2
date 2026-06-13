@@ -86,6 +86,30 @@ else:
 
 # 세션 상태 갱신
 st.sidebar.markdown("---")
+st.sidebar.title("⚙️ 공통 전처리 설정")
+
+exclude_kws_input = st.sidebar.text_input(
+    "제외 키워드 (쉼표 구분)",
+    value="",
+    help="제목이나 내용에 포함될 시 분석에서 제외할 키워드를 입력하세요."
+)
+exclude_keywords = [k.strip() for k in exclude_kws_input.split(",") if k.strip()]
+
+exclude_malls_input = st.sidebar.text_input(
+    "제외 쇼핑몰 (쉼표 구분)",
+    value="",
+    help="쇼핑 데이터 분석 시 결과에서 배제할 쇼핑몰명을 입력하세요."
+)
+exclude_malls = [m.strip() for m in exclude_malls_input.split(",") if m.strip()]
+
+st.sidebar.title("🎨 차트 테마 설정")
+theme_choice = st.sidebar.selectbox(
+    "차트 그래픽 테마",
+    ["Nord Modern", "Cyberpunk Dark", "Light Clean", "Warm Autumn"],
+    help="차트에 입힐 컬러 팔레트와 스타일을 설정합니다."
+)
+
+st.sidebar.markdown("---")
 st.sidebar.title("🔍 검색 조건 설정")
 
 # 검색 키워드 입력
@@ -137,6 +161,55 @@ menu = st.sidebar.radio(
 )
 
 # ----------------- 공통 함수 및 데코레이터 -----------------
+def get_theme_settings(theme_name: str) -> dict:
+    """
+    선택한 테마명에 따른 Plotly 차트 템플릿 및 컬러 세팅을 반환합니다.
+    """
+    themes = {
+        "Nord Modern": {
+            "palette": ["#88C0D0", "#81A1C1", "#5E81AC", "#8FBCBB", "#BF616A", "#D08770", "#EBCB8B", "#A3BE8C", "#B48EAD"],
+            "continuous": ["#E5E9F0", "#81A1C1", "#5E81AC"],
+            "template": "plotly_white"
+        },
+        "Cyberpunk Dark": {
+            "palette": ["#FF007F", "#00F0FF", "#FFDD00", "#7000FF", "#00FF66", "#FF5F00", "#AA00FF"],
+            "continuous": ["#1A1B35", "#FF007F", "#00F0FF"],
+            "template": "plotly_dark"
+        },
+        "Light Clean": {
+            "palette": ["#F4A261", "#2A9D8F", "#E76F51", "#264653", "#E9C46A", "#A8DADC", "#457B9D"],
+            "continuous": ["#F1FAEE", "#A8DADC", "#457B9D"],
+            "template": "ggplot2"
+        },
+        "Warm Autumn": {
+            "palette": ["#8C2F39", "#B2533E", "#D57E52", "#F1C27B", "#A7727D", "#EED4E8", "#C38154"],
+            "continuous": ["#F5F5F7", "#D57E52", "#8C2F39"],
+            "template": "seaborn"
+        }
+    }
+    return themes.get(theme_name, themes["Nord Modern"])
+
+def apply_global_filters(df: pd.DataFrame, text_columns: list) -> pd.DataFrame:
+    """
+    사이드바 공통 전처리 설정값을 사용하여 데이터프레임을 필터링합니다.
+    """
+    if df.empty:
+        return df
+        
+    # 1. 제외 키워드 필터링
+    if exclude_keywords:
+        for col in text_columns:
+            if col in df.columns:
+                for kw in exclude_keywords:
+                    df = df[~df[col].astype(str).str.contains(kw, case=False, na=False)]
+                    
+    # 2. 제외 쇼핑몰 필터링
+    if exclude_malls and "mallName" in df.columns:
+        for mall in exclude_malls:
+            df = df[~df["mallName"].astype(str).str.contains(mall, case=False, na=False)]
+            
+    return df
+
 def check_api_connection():
     if not api_client:
         st.warning("👉 사이드바에서 **Client ID**와 **Client Secret**을 입력해 주셔야 서비스 이용이 가능합니다.")
@@ -262,7 +335,11 @@ def render_search_trend_page():
                     })
             
             df = pd.DataFrame(df_list)
+            df = apply_global_filters(df, ["검색어"])
             df["날짜"] = pd.to_datetime(df["날짜"])
+            
+            # 테마 설정 획득
+            theme = get_theme_settings(theme_choice)
             
             # 시각화 (Plotly)
             fig = px.line(
@@ -272,8 +349,8 @@ def render_search_trend_page():
                 color="검색어",
                 title="일자별 검색어 상대적 트렌드 (가장 높은 날을 100으로 기준)",
                 labels={"날짜": "기간", "검색 비율(%)": "상대적 검색량 (%)"},
-                template="plotly_white",
-                color_discrete_sequence=NORD_PALETTE
+                template=theme["template"],
+                color_discrete_sequence=theme["palette"]
             )
             fig.update_layout(hovermode="x unified")
             st.plotly_chart(fig, use_container_width=True)
@@ -332,12 +409,19 @@ def render_shopping_search_page():
             # Pandas DataFrame 구축
             df = pd.DataFrame(items)
             
+            # HTML 태그 제거용 텍스트 클리닝 (제목)
+            df["title_clean"] = df["title"].str.replace("<b>", "").str.replace("</b>", "")
+            
+            # 공통 필터 적용
+            df = apply_global_filters(df, ["title_clean", "brand", "maker"])
+            
+            if df.empty:
+                st.info("필터링 적용 후 남은 쇼핑 상품 데이터가 없습니다.")
+                return
+                
             # 데이터 전처리: 가격 숫자로 변환
             df["lprice"] = pd.to_numeric(df["lprice"], errors="coerce").fillna(0).astype(int)
             df["hprice"] = pd.to_numeric(df["hprice"], errors="coerce").fillna(0).astype(int)
-            
-            # HTML 태그 제거용 텍스트 클리닝 (제목)
-            df["title_clean"] = df["title"].str.replace("<b>", "").str.replace("</b>", "")
             
             # 기본 지표 카드
             valid_price = df[df["lprice"] > 0]["lprice"]
@@ -354,6 +438,9 @@ def render_shopping_search_page():
             
             st.markdown("---")
             
+            # 테마 획득
+            theme = get_theme_settings(theme_choice)
+            
             # 시각화 영역 분할
             col_chart1, col_chart2 = st.columns(2)
             
@@ -366,8 +453,8 @@ def render_shopping_search_page():
                         nbins=20,
                         title="최저가 기준 가격 분포 히스토그램",
                         labels={"lprice": "최저 가격 (원)", "count": "상품 수"},
-                        template="plotly_white",
-                        color_discrete_sequence=[NORD_BLUE]
+                        template=theme["template"],
+                        color_discrete_sequence=[theme["palette"][0]]
                     )
                     st.plotly_chart(fig_hist, use_container_width=True)
                 else:
@@ -384,9 +471,9 @@ def render_shopping_search_page():
                     orientation="h",
                     title="쇼핑몰별 등록 상품 분포",
                     labels={"상품 수": "상품 수", "쇼핑몰명": "쇼핑몰"},
-                    template="plotly_white",
+                    template=theme["template"],
                     color="상품 수",
-                    color_continuous_scale=NORD_CONTINUOUS
+                    color_continuous_scale=theme["continuous"]
                 )
                 fig_mall.update_layout(yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig_mall, use_container_width=True)
@@ -403,8 +490,8 @@ def render_shopping_search_page():
                         values="상품 수",
                         names="브랜드",
                         title="주요 브랜드 점유율",
-                        template="plotly_white",
-                        color_discrete_sequence=NORD_PALETTE
+                        template=theme["template"],
+                        color_discrete_sequence=theme["palette"]
                     )
                     st.plotly_chart(fig_brand, use_container_width=True)
                 else:
@@ -420,9 +507,9 @@ def render_shopping_search_page():
                         values="상품 수",
                         names="제조사",
                         title="주요 제조사 점유율",
-                        template="plotly_white",
+                        template=theme["template"],
                         hole=0.4,
-                        color_discrete_sequence=NORD_PALETTE
+                        color_discrete_sequence=theme["palette"]
                     )
                     st.plotly_chart(fig_maker, use_container_width=True)
                 else:
@@ -479,11 +566,21 @@ def render_blog_search_page():
             # HTML 태그 제거 및 날짜 형식 변환
             df["title_clean"] = df["title"].str.replace("<b>", "").str.replace("</b>", "")
             df["description_clean"] = df["description"].str.replace("<b>", "").str.replace("</b>", "")
+            
+            # 공통 필터 적용
+            df = apply_global_filters(df, ["title_clean", "description_clean", "bloggername"])
+            
+            if df.empty:
+                st.info("필터링 적용 후 남은 블로그 데이터가 없습니다.")
+                return
+                
             df["post_date"] = pd.to_datetime(df["postdate"], format="%Y%m%d", errors="coerce")
             
             # 발행 날짜별 추이 분석
             date_counts = df["post_date"].value_counts().sort_index().reset_index()
             date_counts.columns = ["작성일", "발행 건수"]
+            
+            theme = get_theme_settings(theme_choice)
             
             col1, col2 = st.columns([2, 1])
             with col1:
@@ -495,8 +592,8 @@ def render_blog_search_page():
                     title="검색 결과 내 등록 일자별 추세 (최근 날짜 중심)",
                     labels={"작성일": "작성일", "발행 건수": "글 수"},
                     markers=True,
-                    template="plotly_white",
-                    color_discrete_sequence=[NORD_BLUE]
+                    template=theme["template"],
+                    color_discrete_sequence=[theme["palette"][0]]
                 )
                 st.plotly_chart(fig_date, use_container_width=True)
                 
@@ -510,8 +607,8 @@ def render_blog_search_page():
                     y="블로거 이름",
                     title="검색 결과 내 상위 노출 빈도",
                     orientation="h",
-                    template="plotly_white",
-                    color_discrete_sequence=[NORD_BLUE]
+                    template=theme["template"],
+                    color_discrete_sequence=[theme["palette"][0]]
                 )
                 fig_blog.update_layout(yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig_blog, use_container_width=True)
@@ -566,6 +663,15 @@ def render_cafe_search_page():
             df["title_clean"] = df["title"].str.replace("<b>", "").str.replace("</b>", "")
             df["description_clean"] = df["description"].str.replace("<b>", "").str.replace("</b>", "")
             
+            # 공통 필터 적용
+            df = apply_global_filters(df, ["title_clean", "description_clean", "cafename"])
+            
+            if df.empty:
+                st.info("필터링 적용 후 남은 카페글 데이터가 없습니다.")
+                return
+                
+            theme = get_theme_settings(theme_choice)
+            
             col1, col2 = st.columns([1, 1])
             with col1:
                 st.markdown("#### 🏠 언급량이 많은 인기 카페 (상위 10개)")
@@ -577,9 +683,9 @@ def render_cafe_search_page():
                     y="카페명",
                     title="검색어가 자주 언급되는 상위 카페",
                     orientation="h",
-                    template="plotly_white",
+                    template=theme["template"],
                     color="게시글 수",
-                    color_continuous_scale=NORD_CONTINUOUS
+                    color_continuous_scale=theme["continuous"]
                 )
                 fig_cafe.update_layout(yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig_cafe, use_container_width=True)
@@ -591,8 +697,8 @@ def render_cafe_search_page():
                     values="게시글 수",
                     names="카페명",
                     title="언급 비중 비율",
-                    template="plotly_white",
-                    color_discrete_sequence=NORD_PALETTE
+                    template=theme["template"],
+                    color_discrete_sequence=theme["palette"]
                 )
                 st.plotly_chart(fig_pie, use_container_width=True)
                 
@@ -645,14 +751,22 @@ def render_news_search_page():
             df["title_clean"] = df["title"].str.replace("<b>", "").str.replace("</b>", "")
             df["description_clean"] = df["description"].str.replace("<b>", "").str.replace("</b>", "")
             
+            # 공통 필터 적용
+            df = apply_global_filters(df, ["title_clean", "description_clean"])
+            
+            if df.empty:
+                st.info("필터링 적용 후 남은 뉴스 데이터가 없습니다.")
+                return
+                
             # 날짜 파싱 (예: "Mon, 26 Sep 2016 07:50:00 +0900")
-            # Pandas의 to_datetime을 사용하여 처리
             df["pub_date"] = pd.to_datetime(df["pubDate"], errors="coerce")
             df["pub_day"] = df["pub_date"].dt.date
             
             # 일자별 기사 발행 추이
             day_counts = df["pub_day"].value_counts().sort_index().reset_index()
             day_counts.columns = ["보도일", "기사 수"]
+            
+            theme = get_theme_settings(theme_choice)
             
             col1, col2 = st.columns([2, 1])
             with col1:
@@ -665,8 +779,8 @@ def render_news_search_page():
                         title="기사 발생 타임라인 추이",
                         labels={"보도일": "날짜", "기사 수": "보도량"},
                         markers=True,
-                        template="plotly_white",
-                        color_discrete_sequence=[NORD_BLUE]
+                        template=theme["template"],
+                        color_discrete_sequence=[theme["palette"][0]]
                     )
                     st.plotly_chart(fig_day, use_container_width=True)
                 else:
@@ -684,8 +798,8 @@ def render_news_search_page():
                     values="기사 수",
                     names="구분",
                     title="네이버 자체 제공 vs 외부 언론사 링크 비율",
-                    template="plotly_white",
-                    color_discrete_sequence=NORD_PALETTE
+                    template=theme["template"],
+                    color_discrete_sequence=theme["palette"]
                 )
                 st.plotly_chart(fig_link, use_container_width=True)
                 
@@ -776,7 +890,10 @@ def render_shopping_trend_page():
                     })
             
             df = pd.DataFrame(df_list)
+            df = apply_global_filters(df, ["키워드"])
             df["날짜"] = pd.to_datetime(df["날짜"])
+            
+            theme = get_theme_settings(theme_choice)
             
             # 시각화 (Plotly)
             fig = px.line(
@@ -786,8 +903,8 @@ def render_shopping_trend_page():
                 color="키워드",
                 title=f"'{selected_category_name}' 카테고리 내 키워드별 클릭 점유 비율 추이",
                 labels={"날짜": "날짜", "클릭 비율(%)": "상대적 클릭수 비율 (%)"},
-                template="plotly_white",
-                color_discrete_sequence=NORD_PALETTE
+                template=theme["template"],
+                color_discrete_sequence=theme["palette"]
             )
             fig.update_layout(hovermode="x unified")
             st.plotly_chart(fig, use_container_width=True)
