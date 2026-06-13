@@ -139,8 +139,7 @@ current_secret = st.session_state["client_secret"]
 if current_id and current_secret:
     api_client = NaverApiClient(current_id, current_secret)
 
-# 비주얼 테마 CSS 주입 실행
-apply_visual_theme_css(theme_choice)
+
 
 # 메뉴 네비게이션
 st.sidebar.markdown("---")
@@ -325,6 +324,8 @@ def handle_api_error(error_message: str):
                 "복사/붙여넣기 시 공백이나 줄바꿈 문자가 들어갔는지 확인이 필요합니다."
             )
 
+# 비주얼 테마 CSS 주입 실행
+apply_visual_theme_css(theme_choice)
 # ----------------- 1. 홈 & API 연결 확인 -----------------
 def render_home_page():
     st.title("🏠 네이버 API 통합 대시보드")
