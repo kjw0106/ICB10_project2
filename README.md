@@ -1,6 +1,7 @@
 # 🚀 Project Status & Quick Links
 
 ## 🔗 Streamlit 대시보드 접속 주소
+- **배포 주소**: [https://icb10project2-pdmcyvdabv6nkcglkqvrjr.streamlit.app/](https://icb10project2-pdmcyvdabv6nkcglkqvrjr.streamlit.app/)
 - **로컬 접속 주소**: [http://localhost:8501](http://localhost:8501)
 - **네트워크 접속 주소**: http://192.168.55.161:8501
 
